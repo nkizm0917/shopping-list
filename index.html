@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>買い物リスト</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
+    h1 { text-align: center; }
+    form { margin-bottom: 1rem; }
+    input, select, button { width: 100%; margin-bottom: 0.5rem; padding: 0.5rem; font-size: 1rem; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #ddd; }
+    .done { text-decoration: line-through; color: gray; }
+    .actions button { margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>買い物リスト</h1>
+
+  <form id="add-form">
+    <input type="text" id="item-name" placeholder="アイテム名" required>
+    <select id="category">
+      <option value="スーパー">スーパー</option>
+      <option value="ドラッグストア">ドラッグストア</option>
+      <option value="100円ショップ">100円ショップ</option>
+    </select>
+    <input type="text" id="memo" placeholder="メモ（任意）">
+    <button type="submit">追加</button>
+  </form>
+
+  <ul id="item-list"></ul>
+
+  <script>
+    const API_BASE = "https://script.google.com/macros/s/AKfycbwoCPLtTmDmNipiuZStnArOkwuICfdDVq0ThVn0lnZ3Na1LMsuTGEBvQ-OhsOuQ8GXV/exec";
+
+    async function fetchItems() {
+      const res = await fetch(API_BASE);
+      const items = await res.json();
+      const list = document.getElementById("item-list");
+      list.innerHTML = "";
+      items.forEach(item => {
+        const li = document.createElement("li");
+        li.className = item.is_done === true || item.is_done === "TRUE" ? "done" : "";
+        li.innerHTML = `
+          <div>
+            <strong>${item.item_name}</strong>（${item.category}）<br>
+            <small>${item.memo || ""}</small>
+          </div>
+          <div class="actions">
+            ${!item.is_done ? `<button onclick="markDone(${item.id})">✔</button>` : ""}
+            <button onclick="deleteItem(${item.id})">🗑</button>
+          </div>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    async function addItem(e) {
+      e.preventDefault();
+      const item_name = document.getElementById("item-name").value;
+      const category = document.getElementById("category").value;
+      const memo = document.getElementById("memo").value;
+      await fetch(API_BASE + "?action=add", {
+        method: "POST",
+        body: JSON.stringify({ item_name, category, memo }),
+        headers: { "Content-Type": "application/json" },
+      });
+      e.target.reset();
+      fetchItems();
+    }
+
+    async function markDone(id) {
+      await fetch(API_BASE + "?action=done", {
+        method: "POST",
+        body: JSON.stringify({ id }),
+        headers: { "Content-Type": "application/json" },
+      });
+      fetchItems();
+    }
+
+    async function deleteItem(id) {
+      if (confirm("削除してもよいですか？")) {
+        await fetch(API_BASE + "?action=delete", {
+          method: "POST",
+          body: JSON.stringify({ id }),
+          headers: { "Content-Type": "application/json" },
+        });
+        fetchItems();
+      }
+    }
+
+    document.getElementById("add-form").addEventListener("submit", addItem);
+    fetchItems();
+  </script>
+</body>
+</html>
